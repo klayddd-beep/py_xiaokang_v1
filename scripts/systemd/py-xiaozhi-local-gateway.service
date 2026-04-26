@@ -1,0 +1,17 @@
+[Unit]
+Description=py-xiaozhi Local Gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/orangepi/py-xiaozhi/local_gateway
+ExecStart=/home/orangepi/py-xiaozhi/.venv/bin/python /home/orangepi/py-xiaozhi/local_gateway/app.py
+Restart=always
+RestartSec=2
+Environment=PYTHONUNBUFFERED=1
+StandardOutput=append:/home/orangepi/py-xiaozhi/local_gateway/local_gateway.log
+StandardError=append:/home/orangepi/py-xiaozhi/local_gateway/local_gateway.log
+
+[Install]
+WantedBy=default.target

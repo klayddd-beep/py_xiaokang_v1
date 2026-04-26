@@ -1,0 +1,41 @@
+/logs
+/config
+
+.venv
+**/__pycache__/
+
+.idea/
+venv/
+
+# 音乐缓存
+cache/
+
+
+/models
+
+# 打包相关
+/build
+/dist
+
+# MACOS
+.DS_Store
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+xiaozhi.spec
+
+/installer
+
+# Local secrets
+local_gateway/.env
+local_gateway/.en
+*.env.local
+
+# Local gateway runtime artifacts
+local_gateway/models/
+local_gateway/*.log

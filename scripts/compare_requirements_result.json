@@ -1,0 +1,480 @@
+{
+  "requirements_considered": 40,
+  "matched_count": 5,
+  "missing": [
+    {
+      "name": "comtypes",
+      "required": "==1.4.6"
+    },
+    {
+      "name": "pycaw",
+      "required": "==20240210"
+    },
+    {
+      "name": "sounddevice",
+      "required": ">=0.4.4"
+    },
+    {
+      "name": "pygame",
+      "required": "==2.6.1"
+    },
+    {
+      "name": "opencv-python-headless",
+      "required": "==4.11.0.86"
+    },
+    {
+      "name": "soxr",
+      "required": "==0.5.0.post1"
+    },
+    {
+      "name": "webrtcvad-wheels",
+      "required": "==2.0.14"
+    },
+    {
+      "name": "sherpa-onnx",
+      "required": "==1.12.8"
+    },
+    {
+      "name": "pendulum",
+      "required": "==3.1.0"
+    },
+    {
+      "name": "openai",
+      "required": "==1.86.0"
+    },
+    {
+      "name": "opuslib",
+      "required": "==3.0.1"
+    },
+    {
+      "name": "paho-mqtt",
+      "required": "==2.1.0"
+    },
+    {
+      "name": "pynput",
+      "required": "==1.8.1"
+    },
+    {
+      "name": "pyperclip",
+      "required": "==1.9.0"
+    },
+    {
+      "name": "pypinyin",
+      "required": "==0.53.0"
+    },
+    {
+      "name": "websockets",
+      "required": "==11.0.3"
+    },
+    {
+      "name": "colorlog",
+      "required": "==6.9.0"
+    },
+    {
+      "name": "qasync",
+      "required": "==0.27.1"
+    },
+    {
+      "name": "py-machineid",
+      "required": "==0.8.0"
+    },
+    {
+      "name": "mutagen",
+      "required": "==1.47.0"
+    },
+    {
+      "name": "lunar_python",
+      "required": "==1.4.4"
+    },
+    {
+      "name": "pyinstaller",
+      "required": "==6.15.0"
+    },
+    {
+      "name": "fastapi",
+      "required": "==0.115.12"
+    },
+    {
+      "name": "uvicorn",
+      "required": "==0.34.0"
+    },
+    {
+      "name": "edge-tts",
+      "required": "==6.1.19"
+    },
+    {
+      "name": "vosk",
+      "required": "==0.3.45"
+    }
+  ],
+  "version_mismatch": [
+    {
+      "name": "pywin32",
+      "required": "==306",
+      "installed": "305.1"
+    },
+    {
+      "name": "cryptography",
+      "required": "==44.0.1",
+      "installed": "43.0.0"
+    },
+    {
+      "name": "PyQt5",
+      "required": "==5.15.11",
+      "installed": "5.15.10"
+    },
+    {
+      "name": "psutil",
+      "required": "==7.0.0",
+      "installed": "5.9.0"
+    },
+    {
+      "name": "pillow",
+      "required": "==11.3.0",
+      "installed": "10.4.0"
+    },
+    {
+      "name": "aiohttp",
+      "required": "==3.12.13",
+      "installed": "3.10.5"
+    },
+    {
+      "name": "brotli",
+      "required": "==1.1.0",
+      "installed": "1.0.9"
+    },
+    {
+      "name": "rich",
+      "required": "==14.1.0",
+      "installed": "13.7.1"
+    },
+    {
+      "name": "packaging",
+      "required": "==25.0",
+      "installed": "24.1"
+    }
+  ],
+  "extras_count": 354,
+  "extras_sample": [
+    {
+      "name": "aiobotocore",
+      "installed": "2.12.3"
+    },
+    {
+      "name": "aiohappyeyeballs",
+      "installed": "2.4.0"
+    },
+    {
+      "name": "aioitertools",
+      "installed": "0.7.1"
+    },
+    {
+      "name": "aiosignal",
+      "installed": "1.2.0"
+    },
+    {
+      "name": "alabaster",
+      "installed": "0.7.16"
+    },
+    {
+      "name": "altair",
+      "installed": "5.0.1"
+    },
+    {
+      "name": "anaconda-anon-usage",
+      "installed": "0.4.4"
+    },
+    {
+      "name": "anaconda-catalogs",
+      "installed": "0.2.0"
+    },
+    {
+      "name": "anaconda-client",
+      "installed": "1.12.3"
+    },
+    {
+      "name": "anaconda-cloud-auth",
+      "installed": "0.5.1"
+    },
+    {
+      "name": "anaconda-navigator",
+      "installed": "2.6.3"
+    },
+    {
+      "name": "anaconda-project",
+      "installed": "0.11.1"
+    },
+    {
+      "name": "annotated-types",
+      "installed": "0.6.0"
+    },
+    {
+      "name": "anyio",
+      "installed": "4.2.0"
+    },
+    {
+      "name": "appdirs",
+      "installed": "1.4.4"
+    },
+    {
+      "name": "archspec",
+      "installed": "0.2.3"
+    },
+    {
+      "name": "argon2-cffi",
+      "installed": "21.3.0"
+    },
+    {
+      "name": "argon2-cffi-bindings",
+      "installed": "21.2.0"
+    },
+    {
+      "name": "arrow",
+      "installed": "1.2.3"
+    },
+    {
+      "name": "astroid",
+      "installed": "2.14.2"
+    },
+    {
+      "name": "astropy",
+      "installed": "6.1.3"
+    },
+    {
+      "name": "astropy-iers-data",
+      "installed": "0.2024.9.2.0.33.23"
+    },
+    {
+      "name": "asttokens",
+      "installed": "2.0.5"
+    },
+    {
+      "name": "async-lru",
+      "installed": "2.0.4"
+    },
+    {
+      "name": "atomicwrites",
+      "installed": "1.4.0"
+    },
+    {
+      "name": "attrs",
+      "installed": "23.1.0"
+    },
+    {
+      "name": "automat",
+      "installed": "20.2.0"
+    },
+    {
+      "name": "autopep8",
+      "installed": "2.0.4"
+    },
+    {
+      "name": "babel",
+      "installed": "2.11.0"
+    },
+    {
+      "name": "bcrypt",
+      "installed": "3.2.0"
+    },
+    {
+      "name": "binaryornot",
+      "installed": "0.4.4"
+    },
+    {
+      "name": "black",
+      "installed": "24.8.0"
+    },
+    {
+      "name": "bleach",
+      "installed": "4.1.0"
+    },
+    {
+      "name": "blinker",
+      "installed": "1.6.2"
+    },
+    {
+      "name": "bokeh",
+      "installed": "3.6.0"
+    },
+    {
+      "name": "boltons",
+      "installed": "23.0.0"
+    },
+    {
+      "name": "botocore",
+      "installed": "1.34.69"
+    },
+    {
+      "name": "bottleneck",
+      "installed": "1.3.7"
+    },
+    {
+      "name": "cachetools",
+      "installed": "5.3.3"
+    },
+    {
+      "name": "certifi",
+      "installed": "2025.8.3"
+    },
+    {
+      "name": "cffi",
+      "installed": "1.17.1"
+    },
+    {
+      "name": "chardet",
+      "installed": "4.0.0"
+    },
+    {
+      "name": "charset-normalizer",
+      "installed": "3.3.2"
+    },
+    {
+      "name": "click",
+      "installed": "8.1.7"
+    },
+    {
+      "name": "cloudpickle",
+      "installed": "3.0.0"
+    },
+    {
+      "name": "colorama",
+      "installed": "0.4.6"
+    },
+    {
+      "name": "colorcet",
+      "installed": "3.1.0"
+    },
+    {
+      "name": "comm",
+      "installed": "0.2.1"
+    },
+    {
+      "name": "conda",
+      "installed": "24.11.3"
+    },
+    {
+      "name": "conda-build",
+      "installed": "24.9.0"
+    },
+    {
+      "name": "conda-content-trust",
+      "installed": "0.2.0"
+    },
+    {
+      "name": "conda-index",
+      "installed": "0.5.0"
+    },
+    {
+      "name": "conda-libmamba-solver",
+      "installed": "24.9.0"
+    },
+    {
+      "name": "conda-pack",
+      "installed": "0.7.1"
+    },
+    {
+      "name": "conda-package-handling",
+      "installed": "2.3.0"
+    },
+    {
+      "name": "conda-package-streaming",
+      "installed": "0.10.0"
+    },
+    {
+      "name": "conda-repo-cli",
+      "installed": "1.0.114"
+    },
+    {
+      "name": "conda-token",
+      "installed": "0.5.0+1.g2209e04"
+    },
+    {
+      "name": "constantly",
+      "installed": "23.10.4"
+    },
+    {
+      "name": "contourpy",
+      "installed": "1.2.0"
+    },
+    {
+      "name": "cookiecutter",
+      "installed": "2.6.0"
+    },
+    {
+      "name": "cssselect",
+      "installed": "1.2.0"
+    },
+    {
+      "name": "cycler",
+      "installed": "0.11.0"
+    },
+    {
+      "name": "cytoolz",
+      "installed": "0.12.2"
+    },
+    {
+      "name": "dask",
+      "installed": "2024.8.2"
+    },
+    {
+      "name": "dask-expr",
+      "installed": "1.1.13"
+    },
+    {
+      "name": "datashader",
+      "installed": "0.16.3"
+    },
+    {
+      "name": "debugpy",
+      "installed": "1.6.7"
+    },
+    {
+      "name": "decorator",
+      "installed": "5.1.1"
+    },
+    {
+      "name": "defusedxml",
+      "installed": "0.7.1"
+    },
+    {
+      "name": "diff-match-patch",
+      "installed": "20200713"
+    },
+    {
+      "name": "dill",
+      "installed": "0.3.8"
+    },
+    {
+      "name": "distributed",
+      "installed": "2024.8.2"
+    },
+    {
+      "name": "distro",
+      "installed": "1.9.0"
+    },
+    {
+      "name": "docstring-to-markdown",
+      "installed": "0.11"
+    },
+    {
+      "name": "docutils",
+      "installed": "0.18.1"
+    },
+    {
+      "name": "et-xmlfile",
+      "installed": "1.1.0"
+    },
+    {
+      "name": "executing",
+      "installed": "0.8.3"
+    },
+    {
+      "name": "fastjsonschema",
+      "installed": "2.16.2"
+    },
+    {
+      "name": "filelock",
+      "installed": "3.13.1"
+    }
+  ]
+}

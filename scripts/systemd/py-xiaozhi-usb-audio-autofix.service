@@ -1,0 +1,10 @@
+[Unit]
+Description=py-xiaozhi USB audio auto-fix
+After=default.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/env bash /home/orangepi/py-xiaozhi/scripts/auto_fix_usb_audio.sh UACDemoV1.0
+
+[Install]
+WantedBy=default.target
