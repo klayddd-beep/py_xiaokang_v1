@@ -105,11 +105,14 @@ APP_PORT = int(_env("GATEWAY_PORT", "8787"))
 WS_TOKEN = _env("WS_TOKEN", "local-dev-token")
 WS_PUBLIC_URL = _env("WS_PUBLIC_URL", f"ws://{APP_HOST}:{APP_PORT}/xiaokang/v1/")
 TTS_VOICE = _env("TTS_VOICE", "zh-CN-XiaoxiaoNeural")
+TTS_BACKEND = _env("TTS_BACKEND", "edge").lower()
 TTS_RATE = _env("TTS_RATE", "+0%")
 TTS_PITCH = _env("TTS_PITCH", "+2Hz")
 TTS_VOLUME = _env("TTS_VOLUME", "+0%")
 TTS_EXPRESSIVE = _env_bool("TTS_EXPRESSIVE", True)
 TTS_ALLOW_FALLBACK = _env_bool("TTS_ALLOW_FALLBACK", False)
+TTS_EDGE_RETRIES = max(1, _env_int("TTS_EDGE_RETRIES", 3))
+TTS_EDGE_RETRY_DELAY = max(0.0, _env_float("TTS_EDGE_RETRY_DELAY", 0.8))
 TTS_SAPI_RATE = _env_int("TTS_SAPI_RATE", -2)
 TTS_SAPI_VOLUME = _env_int("TTS_SAPI_VOLUME", 95)
 TTS_SAPI_PITCH = _env_int("TTS_SAPI_PITCH", 4)
@@ -137,6 +140,9 @@ VOLC_MODEL = _env("VOLC_MODEL", "ark-code-latest")
 VOLC_OPENAI_BASE_URL = _env(
     "VOLC_OPENAI_BASE_URL", "https://ark.cn-beijing.volces.com/api/coding/v3"
 )
+VOLC_TTS_MODEL = _env("VOLC_TTS_MODEL", "doubao-tts")
+VOLC_TTS_VOICE = _env("VOLC_TTS_VOICE", "zh_female_qingxin")
+VOLC_TTS_RESPONSE_FORMAT = _env("VOLC_TTS_RESPONSE_FORMAT", "mp3")
 LLM_TEMPERATURE = _env_float("LLM_TEMPERATURE", 0.2)
 LLM_MAX_TOKENS = _env_int("LLM_MAX_TOKENS", 180)
 LLM_STREAMING = _env_bool("LLM_STREAMING", True)
@@ -1061,7 +1067,13 @@ async def _send_opus_frames(
         await asyncio.sleep((len(frames) * frame_interval) + 0.08)
 
 
-async def _synthesize_mp3(text: str, rate_override: str | None = None) -> bytes:
+async def _synthesize_mp3_once(
+    text: str,
+    rate_override: str | None = None,
+    *,
+    pitch_override: str | None = None,
+    volume_override: str | None = None,
+) -> bytes:
     if edge_tts is None:
         raise RuntimeError("edge-tts 未安装")
 
@@ -1073,8 +1085,8 @@ async def _synthesize_mp3(text: str, rate_override: str | None = None) -> bytes:
         text=prepared_text,
         voice=TTS_VOICE,
         rate=rate_override or TTS_RATE,
-        pitch=TTS_PITCH,
-        volume=TTS_VOLUME,
+        pitch=pitch_override or TTS_PITCH,
+        volume=volume_override or TTS_VOLUME,
     )
     chunks: list[bytes] = []
     async for item in communicator.stream():
@@ -1085,6 +1097,67 @@ async def _synthesize_mp3(text: str, rate_override: str | None = None) -> bytes:
     if not audio:
         raise RuntimeError("TTS 未返回音频数据")
     return audio
+
+
+async def _synthesize_mp3(text: str, rate_override: str | None = None) -> bytes:
+    last_error: Exception | None = None
+
+    for attempt in range(1, TTS_EDGE_RETRIES + 1):
+        try:
+            return await _synthesize_mp3_once(text, rate_override=rate_override)
+        except Exception as exc:
+            last_error = exc
+            logger.warning(
+                "edge_tts failed, retrying (%s/%s): %s",
+                attempt,
+                TTS_EDGE_RETRIES,
+                exc,
+            )
+            if attempt < TTS_EDGE_RETRIES:
+                await asyncio.sleep(TTS_EDGE_RETRY_DELAY)
+
+    # Keep the same Edge voice, but use conservative prosody as a final try.
+    try:
+        return await _synthesize_mp3_once(
+            text,
+            rate_override=TTS_RATE,
+            pitch_override="+0Hz",
+            volume_override="+0%",
+        )
+    except Exception as exc:
+        raise last_error or exc
+
+
+async def _synthesize_with_volc_openai(text: str) -> bytes:
+    if openai_client is None:
+        raise RuntimeError("未配置 VOLC_API_KEY，无法使用火山 TTS")
+
+    prepared_text = _normalize_tts_text(text)
+    if not prepared_text:
+        raise RuntimeError("TTS 输入文本为空")
+
+    def _create_speech() -> bytes:
+        kwargs: dict[str, Any] = {
+            "model": VOLC_TTS_MODEL,
+            "voice": VOLC_TTS_VOICE,
+            "input": prepared_text,
+        }
+        if VOLC_TTS_RESPONSE_FORMAT:
+            kwargs["response_format"] = VOLC_TTS_RESPONSE_FORMAT
+
+        response = openai_client.audio.speech.create(**kwargs)
+        if hasattr(response, "read"):
+            data = response.read()
+        elif hasattr(response, "content"):
+            data = response.content
+        else:
+            data = bytes(response)
+
+        if not data:
+            raise RuntimeError("火山 TTS 未返回音频数据")
+        return data
+
+    return await asyncio.to_thread(_create_speech)
 
 
 async def _synthesize_wav_with_espeak(text: str) -> bytes:
@@ -1188,6 +1261,22 @@ async def _synthesize_wav_with_windows_sapi(
 
 async def _synthesize_tts_audio(text: str, rate_override: str | None = None) -> bytes:
     backend_errors: list[str] = []
+
+    if TTS_BACKEND in ("volc", "volc_openai", "doubao"):
+        try:
+            data = await _synthesize_with_volc_openai(text)
+            _log_tts_backend_once(
+                "volc_openai",
+                f"model={VOLC_TTS_MODEL}, voice={VOLC_TTS_VOICE}",
+            )
+            return data
+        except Exception as exc:
+            backend_errors.append(f"volc_openai={exc}")
+            if not TTS_ALLOW_FALLBACK:
+                logger.error("volc_openai TTS failed and fallback is disabled: %s", exc)
+                raise RuntimeError(
+                    "火山 TTS 合成失败，且未启用回退；请检查 VOLC_TTS_MODEL / VOLC_TTS_VOICE"
+                ) from exc
 
     try:
         data = await _synthesize_mp3(text, rate_override=rate_override)

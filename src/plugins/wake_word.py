@@ -67,14 +67,14 @@ class WakeWordPlugin(Plugin):
         # 检测到唤醒词：切到自动对话（根据 AEC 自动选择实时/自动停）
         try:
             # 若正在说话，交给应用的打断/状态机处理
-            if hasattr(self.app, "device_state") and hasattr(
-                self.app, "start_auto_conversation"
-            ):
+            if hasattr(self.app, "device_state"):
                 if self.app.is_speaking():
                     await self.app.abort_speaking(AbortReason.WAKE_WORD_DETECTED)
                     audio_plugin = self.app.plugins.get_plugin("audio")
                     if audio_plugin and audio_plugin.codec:
                         await audio_plugin.codec.clear_audio_queue()
+                elif hasattr(self.app, "start_wake_word_conversation"):
+                    await self.app.start_wake_word_conversation()
                 else:
                     await self.app.start_auto_conversation()
         except Exception as e:

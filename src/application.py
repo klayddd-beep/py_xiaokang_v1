@@ -68,6 +68,7 @@ class Application:
             ListeningMode.REALTIME if self.aec_enabled else ListeningMode.AUTO_STOP
         )
         self.keep_listening = False
+        self._wake_word_listen_timeout_task = None
 
         # 统一任务池（替代 _main_tasks/_bg_tasks）
         self._tasks: set[asyncio.Task] = set()
@@ -191,6 +192,7 @@ class Application:
     # -------------------------
     async def start_listening_manual(self) -> None:
         try:
+            self._cancel_wake_word_listen_timeout()
             ok = await self.connect_protocol()
             if not ok:
                 return
@@ -208,6 +210,8 @@ class Application:
 
     async def stop_listening_manual(self) -> None:
         try:
+            self._cancel_wake_word_listen_timeout()
+            self.keep_listening = False
             await self.protocol.send_stop_listening()
             await self.set_device_state(DeviceState.IDLE)
         except Exception:
@@ -218,6 +222,7 @@ class Application:
     # -------------------------
     async def start_auto_conversation(self) -> None:
         try:
+            self._cancel_wake_word_listen_timeout()
             ok = await self.connect_protocol()
             if not ok:
                 return
@@ -231,6 +236,51 @@ class Application:
             await self.set_device_state(DeviceState.LISTENING)
         except Exception:
             pass
+
+    async def start_wake_word_conversation(self) -> None:
+        try:
+            ok = await self.connect_protocol()
+            if not ok:
+                return
+
+            # Wake word should behave like a one-shot assistant wake-up:
+            # listen for the next utterance, then return to idle after the reply.
+            self.listening_mode = ListeningMode.AUTO_STOP
+            self.keep_listening = False
+            await self.protocol.send_start_listening(ListeningMode.AUTO_STOP)
+            await self.set_device_state(DeviceState.LISTENING)
+            self._schedule_wake_word_listen_timeout()
+        except Exception:
+            pass
+
+    def _cancel_wake_word_listen_timeout(self) -> None:
+        task = getattr(self, "_wake_word_listen_timeout_task", None)
+        if task and not task.done():
+            task.cancel()
+        self._wake_word_listen_timeout_task = None
+
+    def _schedule_wake_word_listen_timeout(self) -> None:
+        self._cancel_wake_word_listen_timeout()
+        timeout_seconds = 5.0
+
+        async def _stop_after_timeout():
+            try:
+                await asyncio.sleep(timeout_seconds)
+                if (
+                    self.device_state == DeviceState.LISTENING
+                    and self.listening_mode == ListeningMode.AUTO_STOP
+                    and not self.keep_listening
+                ):
+                    await self.protocol.send_stop_listening()
+                    await self.set_device_state(DeviceState.IDLE)
+            except asyncio.CancelledError:
+                return
+            except Exception:
+                pass
+
+        self._wake_word_listen_timeout_task = self.spawn(
+            _stop_after_timeout(), "wake_word:auto_stop"
+        )
 
     def _setup_protocol_callbacks(self) -> None:
         self.protocol.on_network_error(self._on_network_error)
