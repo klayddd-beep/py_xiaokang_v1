@@ -281,8 +281,6 @@ if __name__ == "__main__":
         )
 
         # 检测Wayland环境并设置Qt平台插件配置
-        import os
-
         is_wayland = (
             os.environ.get("WAYLAND_DISPLAY")
             or os.environ.get("XDG_SESSION_TYPE") == "wayland"

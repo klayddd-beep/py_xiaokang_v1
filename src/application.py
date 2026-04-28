@@ -68,6 +68,7 @@ class Application:
             ListeningMode.REALTIME if self.aec_enabled else ListeningMode.AUTO_STOP
         )
         self.keep_listening = False
+        self.aborted = False
         self._wake_word_listen_timeout_task = None
 
         # 统一任务池（替代 _main_tasks/_bg_tasks）

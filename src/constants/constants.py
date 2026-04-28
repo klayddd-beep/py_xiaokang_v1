@@ -66,6 +66,7 @@ def get_frame_duration() -> int:
     """
     try:
         # 妫€鏌ユ槸鍚︿负瀹樻柟鏈嶅姟鍣?        ota_url = config.get_config("SYSTEM_OPTIONS.NETWORK.OTA_VERSION_URL")
+        ota_url = config.get_config("SYSTEM_OPTIONS.NETWORK.OTA_VERSION_URL")
         if not is_official_server(ota_url):
             return 60
 

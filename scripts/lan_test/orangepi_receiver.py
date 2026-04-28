@@ -22,6 +22,7 @@ import json
 import logging
 import shutil
 import subprocess
+import threading
 import time
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -183,6 +184,38 @@ def _publish_takeoff_flag(
         "success_count": success_count,
         "attempts": attempts,
     }
+
+
+def _start_ros_topic_echo(topic: str, mode: str) -> Optional[subprocess.Popen[str]]:
+    resolved_mode = _detect_ros_mode(mode)
+    if resolved_mode == "off":
+        logging.warning("ROS topic echo disabled: ros2 cli not found or ros-mode=off")
+        return None
+
+    cmd = ["ros2", "topic", "echo", topic]
+    try:
+        process: subprocess.Popen[str] = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+    except Exception as exc:
+        logging.warning("failed to start ROS topic echo for %s: %s", topic, exc)
+        return None
+
+    def _pump_output() -> None:
+        assert process.stdout is not None
+        for line in process.stdout:
+            text = line.rstrip()
+            if text:
+                logging.info("[ros2 echo %s] %s", topic, text)
+
+    thread = threading.Thread(target=_pump_output, daemon=True)
+    thread.start()
+    logging.info("Started ROS topic echo: %s", " ".join(cmd))
+    return process
 
 
 class ReceiverConfig:
@@ -381,6 +414,11 @@ def main() -> None:
         default=0.12,
         help="seconds between repeated ROS publishes",
     )
+    parser.add_argument(
+        "--no-ros-echo",
+        action="store_true",
+        help="do not print ros2 topic echo output while receiver is running",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -411,11 +449,21 @@ def main() -> None:
     else:
         logging.info("No custom action map loaded. Built-ins: ping, set_volume, takeoff->ROS signal")
 
+    echo_process = None
+    if not args.no_ros_echo:
+        echo_process = _start_ros_topic_echo(args.ros_takeoff_topic, args.ros_mode)
+
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         logging.info("Interrupted, shutting down...")
     finally:
+        if echo_process and echo_process.poll() is None:
+            echo_process.terminate()
+            try:
+                echo_process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                echo_process.kill()
         server.server_close()
 
 

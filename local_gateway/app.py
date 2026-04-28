@@ -6,7 +6,6 @@ import logging
 import os
 import re
 import shutil
-import subprocess
 import tempfile
 import threading
 import time
@@ -31,6 +30,11 @@ try:
     import edge_tts
 except Exception:  # pragma: no cover
     edge_tts = None
+
+try:
+    import sherpa_onnx
+except Exception:  # pragma: no cover
+    sherpa_onnx = None
 
 try:
     import imageio_ffmpeg  # type: ignore
@@ -117,6 +121,20 @@ TTS_SAPI_RATE = _env_int("TTS_SAPI_RATE", -2)
 TTS_SAPI_VOLUME = _env_int("TTS_SAPI_VOLUME", 95)
 TTS_SAPI_PITCH = _env_int("TTS_SAPI_PITCH", 4)
 TTS_SAPI_XML = _env_bool("TTS_SAPI_XML", True)
+TTS_SHERPA_MODEL = _env("TTS_SHERPA_MODEL")
+TTS_SHERPA_TOKENS = _env("TTS_SHERPA_TOKENS")
+TTS_SHERPA_LEXICON = _env("TTS_SHERPA_LEXICON")
+TTS_SHERPA_DATA_DIR = _env("TTS_SHERPA_DATA_DIR")
+TTS_SHERPA_DICT_DIR = _env("TTS_SHERPA_DICT_DIR")
+TTS_SHERPA_RULE_FSTS = _env("TTS_SHERPA_RULE_FSTS")
+TTS_SHERPA_RULE_FARS = _env("TTS_SHERPA_RULE_FARS")
+TTS_SHERPA_SID = _env_int("TTS_SHERPA_SID", 0)
+TTS_SHERPA_SPEED = max(0.25, _env_float("TTS_SHERPA_SPEED", 1.0))
+TTS_SHERPA_THREADS = max(1, _env_int("TTS_SHERPA_THREADS", 2))
+TTS_SHERPA_LENGTH_SCALE = max(0.25, _env_float("TTS_SHERPA_LENGTH_SCALE", 1.0))
+TTS_SHERPA_NOISE_SCALE = max(0.0, _env_float("TTS_SHERPA_NOISE_SCALE", 0.667))
+TTS_SHERPA_NOISE_SCALE_W = max(0.0, _env_float("TTS_SHERPA_NOISE_SCALE_W", 0.8))
+TTS_SHERPA_SILENCE_SCALE = max(0.0, _env_float("TTS_SHERPA_SILENCE_SCALE", 0.2))
 ESPEAK_VOICE = _env("ESPEAK_VOICE", "zh")
 ASR_MODEL = _env("ASR_MODEL", "whisper-1")
 ASR_BACKEND = _env("ASR_BACKEND", "vosk")
@@ -215,6 +233,8 @@ logger = logging.getLogger("local_gateway")
 _whisper_model = None
 _vosk_model = None
 _tts_backend_logged: set[str] = set()
+_sherpa_tts_lock = threading.Lock()
+_sherpa_tts: Any | None = None
 
 if SetLogLevel is not None:
     try:
@@ -723,6 +743,24 @@ def _log_tts_backend_once(name: str, detail: str = "") -> None:
         logger.info("TTS backend=%s", name)
 
 
+def _resolve_local_path(path_text: str) -> str:
+    if not path_text:
+        return ""
+
+    path = Path(path_text).expanduser()
+    if not path.is_absolute():
+        path = _BASE_DIR / path
+    return str(path.resolve())
+
+
+def _split_sherpa_rule_paths(path_text: str) -> str:
+    if not path_text:
+        return ""
+    return ",".join(
+        _resolve_local_path(part.strip()) for part in path_text.split(",") if part.strip()
+    )
+
+
 def _build_wav_from_pcm(pcm_data: bytes, sample_rate: int) -> bytes:
     wav_buffer = io.BytesIO()
     with wave.open(wav_buffer, "wb") as wav_file:
@@ -731,6 +769,65 @@ def _build_wav_from_pcm(pcm_data: bytes, sample_rate: int) -> bytes:
         wav_file.setframerate(sample_rate)
         wav_file.writeframes(pcm_data)
     return wav_buffer.getvalue()
+
+
+def _float_samples_to_wav(samples: Any, sample_rate: int) -> bytes:
+    try:
+        import numpy as np
+    except Exception as exc:
+        raise RuntimeError(f"numpy 不可用，无法编码 sherpa TTS 音频: {exc}") from exc
+
+    array = np.asarray(samples, dtype=np.float32)
+    if array.size == 0:
+        raise RuntimeError("sherpa TTS 未返回音频数据")
+
+    array = np.clip(array, -1.0, 1.0)
+    pcm = (array * 32767.0).astype(np.int16).tobytes()
+    return _build_wav_from_pcm(pcm, int(sample_rate))
+
+
+def _get_sherpa_tts() -> Any:
+    global _sherpa_tts
+
+    if sherpa_onnx is None:
+        raise RuntimeError("sherpa-onnx 未安装，无法使用本地 TTS")
+
+    if not TTS_SHERPA_MODEL or not TTS_SHERPA_TOKENS:
+        raise RuntimeError(
+            "未配置 TTS_SHERPA_MODEL / TTS_SHERPA_TOKENS，无法使用 sherpa 本地 TTS"
+        )
+
+    with _sherpa_tts_lock:
+        if _sherpa_tts is not None:
+            return _sherpa_tts
+
+        vits_config = sherpa_onnx.OfflineTtsVitsModelConfig(
+            model=_resolve_local_path(TTS_SHERPA_MODEL),
+            lexicon=_resolve_local_path(TTS_SHERPA_LEXICON),
+            tokens=_resolve_local_path(TTS_SHERPA_TOKENS),
+            data_dir=_resolve_local_path(TTS_SHERPA_DATA_DIR),
+            dict_dir=_resolve_local_path(TTS_SHERPA_DICT_DIR),
+            noise_scale=TTS_SHERPA_NOISE_SCALE,
+            noise_scale_w=TTS_SHERPA_NOISE_SCALE_W,
+            length_scale=TTS_SHERPA_LENGTH_SCALE,
+        )
+        model_config = sherpa_onnx.OfflineTtsModelConfig(
+            vits=vits_config,
+            num_threads=TTS_SHERPA_THREADS,
+            provider="cpu",
+        )
+        tts_config = sherpa_onnx.OfflineTtsConfig(
+            model=model_config,
+            rule_fsts=_split_sherpa_rule_paths(TTS_SHERPA_RULE_FSTS),
+            rule_fars=_split_sherpa_rule_paths(TTS_SHERPA_RULE_FARS),
+            max_num_sentences=1,
+            silence_scale=TTS_SHERPA_SILENCE_SCALE,
+        )
+        if not tts_config.validate():
+            raise RuntimeError(f"sherpa TTS 配置无效: {tts_config}")
+
+        _sherpa_tts = sherpa_onnx.OfflineTts(tts_config)
+        return _sherpa_tts
 
 
 def _trim_pcm_silence(
@@ -1160,6 +1257,24 @@ async def _synthesize_with_volc_openai(text: str) -> bytes:
     return await asyncio.to_thread(_create_speech)
 
 
+async def _synthesize_wav_with_sherpa(
+    text: str, rate_override: str | None = None
+) -> bytes:
+    prepared_text = _normalize_tts_text(text)
+    if not prepared_text:
+        raise RuntimeError("TTS 输入文本为空")
+
+    def _generate() -> bytes:
+        tts = _get_sherpa_tts()
+        speed = TTS_SHERPA_SPEED
+        if rate_override:
+            speed = max(0.25, 1.0 + (_parse_percent_rate(rate_override, 0) / 100.0))
+        audio = tts.generate(prepared_text, sid=TTS_SHERPA_SID, speed=speed)
+        return _float_samples_to_wav(audio.samples, audio.sample_rate)
+
+    return await asyncio.to_thread(_generate)
+
+
 async def _synthesize_wav_with_espeak(text: str) -> bytes:
     espeak_command = shutil.which("espeak-ng") or shutil.which("espeak")
     if not espeak_command:
@@ -1261,6 +1376,22 @@ async def _synthesize_wav_with_windows_sapi(
 
 async def _synthesize_tts_audio(text: str, rate_override: str | None = None) -> bytes:
     backend_errors: list[str] = []
+
+    if TTS_BACKEND in ("sherpa", "sherpa_onnx", "local"):
+        try:
+            data = await _synthesize_wav_with_sherpa(text, rate_override=rate_override)
+            _log_tts_backend_once(
+                "sherpa_onnx",
+                f"model={TTS_SHERPA_MODEL}, sid={TTS_SHERPA_SID}",
+            )
+            return data
+        except Exception as exc:
+            backend_errors.append(f"sherpa_onnx={exc}")
+            if not TTS_ALLOW_FALLBACK:
+                logger.error("sherpa_onnx TTS failed and fallback is disabled: %s", exc)
+                raise RuntimeError(
+                    "sherpa 本地 TTS 合成失败，且未启用回退；请检查 TTS_SHERPA_* 模型配置"
+                ) from exc
 
     if TTS_BACKEND in ("volc", "volc_openai", "doubao"):
         try:
